@@ -15,8 +15,8 @@ This includes:
 import os
 import re
 import sys
-from glob import glob
 from logging import log
+from pathlib import Path
 
 from setuptools import Command
 from setuptools.command.build_py import build_py
@@ -30,33 +30,19 @@ from setuptools.command.install_scripts import install_scripts
 #-------------------------------------------------------------------------------
 
 # A few handy globals
-isfile = os.path.isfile
-pjoin = os.path.join
-repo_root = os.path.dirname(os.path.abspath(__file__))
+repo_root = Path(__file__).parent.resolve()
 
 def execfile(fname, globs, locs=None):
     locs = locs or globs
     with open(fname, encoding="utf-8") as f:
         exec(compile(f.read(), fname, "exec"), globs, locs)
 
-# A little utility we'll need below, since glob() does NOT allow you to do
-# exclusion on multiple endings!
-def file_doesnt_endwith(test,endings):
-    """Return true if test is a file and its name does NOT end with any
-    of the strings listed in endings."""
-    if not isfile(test):
-        return False
-    for e in endings:
-        if test.endswith(e):
-            return False
-    return True
-
 #---------------------------------------------------------------------------
 # Basic project information
 #---------------------------------------------------------------------------
 
 # release.py contains version, authors, license, url, keywords, etc.
-execfile(pjoin(repo_root, 'IPython','core','release.py'), globals())
+execfile(repo_root / 'IPython' / 'core' / 'release.py', globals())
 
 # Create a dict with the basic information
 # This dict is eventually passed to setup after additional keys are added.
@@ -146,15 +132,16 @@ def find_data_files():
     """
 
     if "freebsd" in sys.platform:
-        manpagebase = pjoin('man', 'man1')
+        manpagebase = Path('man', 'man1')
     else:
-        manpagebase = pjoin('share', 'man', 'man1')
+        manpagebase = Path('share', 'man', 'man1')
 
     # Simple file lists can be made by hand
-    manpages = [f for f in glob(pjoin('docs','man','*.1.gz')) if isfile(f)]
+    cwd = Path.cwd()
+    manpages = [f for f in cwd.glob("docs/man/*.1.gz") if f.is_file()]
     if not manpages:
         # When running from a source tree, the manpages aren't gzipped
-        manpages = [f for f in glob(pjoin('docs','man','*.1')) if isfile(f)]
+        manpages = [f for f in cwd.glob("docs/man/*.1") if f.is_file()]
 
     # And assemble the entire output list
     data_files = [ (manpagebase, manpages) ]
@@ -325,8 +312,8 @@ def git_prebuild(pkg_dir, build_cmd=build_py):
             repo_commit, _ = proc.communicate()
             repo_commit = repo_commit.strip().decode("ascii")
 
-            out_pth = pjoin(base_dir, pkg_dir, 'utils', '_sysinfo.py')
-            if os.path.isfile(out_pth) and not repo_commit:
+            out_pth = Path(base_dir, pkg_dir, 'utils', '_sysinfo.py')
+            if out_pth.is_file() and not repo_commit:
                 # nothing to write, don't clobber
                 return
 
